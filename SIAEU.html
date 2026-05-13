@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIAEU — Sistema Inteligente de Apoio à Estabilidade de Encostas Urbanas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#050b18;--surface:#081222;--card:rgba(8,18,40,0.82);
+  --border:rgba(56,189,248,0.13);--border2:rgba(56,189,248,0.25);
+  --sky:#38bdf8;--em:#34d399;--warn:#fb923c;--dan:#f87171;--pur:#a78bfa;--gold:#fbbf24;
+  --muted:#4a6080;--sub:#7a9ab8;--text:#dce8f5;
+  --mono:'JetBrains Mono',monospace;--sans:'Exo 2',sans-serif;
+  --r:10px;--side:220px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;overflow-x:hidden}
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:rgba(56,189,248,0.3);border-radius:3px}
+/* Loading */
+#loading{position:fixed;inset:0;background:#020810;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#loading .logo-load{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--sky);letter-spacing:.15em;animation:blink 1.2s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+#loading .load-bar-wrap{width:280px;height:3px;background:rgba(56,189,248,.12);border-radius:2px;overflow:hidden}
+#loading .load-bar{height:100%;width:0;background:linear-gradient(90deg,var(--sky),var(--em));border-radius:2px;transition:width .3s ease}
+#loading .load-msg{font-family:var(--mono);font-size:11px;color:var(--muted);min-height:16px;letter-spacing:.05em}
+#loading .load-pct{font-family:var(--mono);font-size:11px;color:var(--sky)}
+/* Login */
+#login-screen{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center}
+#login-canvas{position:absolute;inset:0;opacity:.7}
+.login-box{position:relative;z-index:1;width:360px;max-width:92vw;padding:2.5rem;border-radius:16px;background:rgba(5,11,28,.88);border:1px solid var(--border2);backdrop-filter:blur(20px)}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;justify-content:center}
+.login-logo svg{width:36px;height:36px}
+.login-logo span{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--sky);letter-spacing:.1em}
+.login-title{text-align:center;font-size:12px;color:var(--sub);margin-bottom:2rem;line-height:1.5}
+.login-field{margin-bottom:1rem}
+.login-field label{display:block;font-size:11px;color:var(--sub);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase}
+.login-field input,.login-field select{width:100%;padding:10px 14px;background:rgba(56,189,248,.05);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border .2s}
+.login-field input:focus,.login-field select:focus{border-color:var(--sky)}
+.login-field select option{background:#0a1628}
+.btn-login{width:100%;padding:11px;margin-top:.5rem;border:none;border-radius:var(--r);background:linear-gradient(135deg,#0284c7,var(--sky));color:#fff;font-family:var(--sans);font-weight:700;font-size:13px;cursor:pointer;transition:opacity .2s,transform .1s;letter-spacing:.05em}
+.btn-login:hover{opacity:.9}.btn-login:active{transform:scale(.98)}
+/* App Layout */
+#app{display:none;min-height:100vh}
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--border);z-index:100;display:flex;flex-direction:column;transition:transform .3s}
+.sb-logo{padding:1.25rem 1rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sb-logo-icon{width:28px;height:28px;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-logo-text{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--sky);letter-spacing:.08em}
+.sb-logo-ver{font-size:9px;color:var(--muted);font-family:var(--mono)}
+.sb-user{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sb-avatar{width:28px;height:28px;border-radius:50%;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--em);flex-shrink:0}
+.sb-username{font-size:12px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-role{font-size:10px;color:var(--muted)}
+nav.sb-nav{flex:1;overflow-y:auto;padding:.5rem 0}
+.nav-section-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:.5rem 1rem .25rem;font-family:var(--mono)}
+.nav-item{display:flex;align-items:center;gap:8px;padding:.55rem 1rem;margin:1px .5rem;border-radius:7px;cursor:pointer;transition:all .15s;color:var(--sub);font-size:12px;font-weight:600;border:none;background:none;width:calc(100% - 1rem);text-align:left}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;opacity:.7}
+.nav-item:hover{background:rgba(56,189,248,.06);color:var(--text)}
+.nav-item.active{background:rgba(56,189,248,.1);color:var(--sky);border:1px solid rgba(56,189,248,.15)}
+.nav-item.active svg{opacity:1}
+.sb-status{padding:.75rem 1rem;border-top:1px solid var(--border);font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.status-dot.ok{background:var(--em);box-shadow:0 0 6px var(--em)}
+.status-dot.warn{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+/* Main content */
+#main{margin-left:var(--side);min-height:100vh;position:relative}
+.section{display:none;padding:1.5rem 1.75rem 3rem;animation:fadeIn .3s ease}
+.section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+/* Top bar */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.75rem;background:rgba(5,11,24,.85);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;backdrop-filter:blur(12px)}
+.top-bar-left{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.top-bar-left span{color:var(--sky)}
+.top-bar-right{display:flex;align-items:center;gap:12px}
+.btn-logout{font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid rgba(248,113,113,.25);color:var(--dan);background:rgba(248,113,113,.05);cursor:pointer;transition:all .15s;font-family:var(--sans)}
+.btn-logout:hover{background:rgba(248,113,113,.12)}
+/* Toast */
+#toast-wrap{position:fixed;top:16px;right:16px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 16px;border-radius:9px;font-size:12px;font-family:var(--mono);backdrop-filter:blur(16px);border:1px solid;animation:slideIn .3s ease;pointer-events:all;max-width:280px}
+.toast.ok{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.3);color:var(--em)}
+.toast.warn{background:rgba(251,146,60,.12);border-color:rgba(251,146,60,.3);color:var(--warn)}
+.toast.info{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.3);color:var(--sky)}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+/* Shared components */
+.sec-tag{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--sky);margin-bottom:.5rem}
+.sec-h{font-size:24px;font-weight:900;color:#fff;margin-bottom:.35rem}
+.sec-sub{font-size:13px;color:var(--sub);margin-bottom:1.5rem;max-width:640px}
+.glass{background:var(--card);border:1px solid var(--border);border-radius:var(--r);backdrop-filter:blur(10px)}
+.glass-hi{background:rgba(8,18,40,.9);border:1px solid var(--border2);border-radius:var(--r);backdrop-filter:blur(12px)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem}
+.card-p{padding:1.25rem}
+.card-sm{padding:.9rem}
+.kpi-val{font-family:var(--mono);font-size:26px;font-weight:700;margin:.25rem 0 .2rem}
+.kpi-label{font-size:11px;color:var(--sub)}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:.15rem}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.05em}
+.badge-sky{background:rgba(56,189,248,.12);color:var(--sky);border:1px solid rgba(56,189,248,.25)}
+.badge-em{background:rgba(52,211,153,.12);color:var(--em);border:1px solid rgba(52,211,153,.25)}
+.badge-warn{background:rgba(251,146,60,.12);color:var(--warn);border:1px solid rgba(251,146,60,.25)}
+.badge-dan{background:rgba(248,113,113,.12);color:var(--dan);border:1px solid rgba(248,113,113,.25)}
+.badge-pur{background:rgba(167,139,250,.12);color:var(--pur);border:1px solid rgba(167,139,250,.25)}
+.code-box{background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:.6rem 1rem;font-family:var(--mono);font-size:12px;color:#a5e8ff;margin:.5rem 0}
+/* Inputs */
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:rgba(56,189,248,.15);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--sky);border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(56,189,248,.5)}
+.toggle-wrap{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-radius:8px;background:rgba(56,189,248,.04);border:1px solid var(--border);cursor:pointer}
+.toggle{width:36px;height:18px;border-radius:9px;background:var(--muted);position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--sky)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle.on::after{left:20px}
+/* Tables */
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:.5rem .75rem;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:.55rem .75rem;font-size:12px;border-bottom:1px solid rgba(56,189,248,.05);color:var(--text)}
+tr:last-child td{border-bottom:none}
+.td-mono{font-family:var(--mono);font-weight:700}
+/* Risk bar */
+.risk-bar-wrap{height:10px;border-radius:5px;overflow:hidden;background:rgba(56,189,248,.08);margin:.5rem 0}
+.risk-bar-fill{height:100%;border-radius:5px;transition:width .5s ease,background .5s ease}
+/* Charts */
+.chart-wrap{position:relative;width:100%}
+/* Filter btns */
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.filter-btn{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:none;color:var(--sub);font-family:var(--sans)}
+.filter-btn.active{background:rgba(56,189,248,.1);color:var(--sky);border-color:var(--border2)}
+/* Sensor dot */
+.sensor-row{display:flex;align-items:center;gap:10px;padding:.6rem .75rem;border-radius:8px;border:1px solid var(--border);background:rgba(56,189,248,.03);margin-bottom:5px;cursor:default;transition:border-color .15s}
+.sensor-row:hover{border-color:rgba(56,189,248,.25)}
+/* Timeline */
+.timeline{position:relative}
+.tl-item{display:flex;gap:16px;margin-bottom:20px;position:relative}
+.tl-dot{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--sky);border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.08)}
+.tl-line{position:absolute;left:14px;top:30px;bottom:-14px;width:1px;background:rgba(56,189,248,.12)}
+.tl-content{flex:1}
+.tl-date{font-family:var(--mono);font-size:10px;color:var(--sky);margin-bottom:2px}
+.tl-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px}
+.tl-desc{font-size:11px;color:var(--sub);line-height:1.5}
+/* Map SVG */
+#map-svg{width:100%;height:auto;cursor:pointer}
+.map-tooltip{position:absolute;background:rgba(5,11,28,.95);border:1px solid var(--border2);border-radius:8px;padding:.6rem .9rem;font-size:11px;font-family:var(--mono);pointer-events:none;display:none;z-index:10;min-width:180px}
+/* Gallery */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+.gallery-card{border-radius:var(--r);border:1px solid var(--border);background:rgba(8,18,40,.6);overflow:hidden;transition:border-color .2s}
+.gallery-card:hover{border-color:var(--border2)}
+.gallery-svg-wrap{padding:1rem;background:rgba(56,189,248,.02)}
+.gallery-info{padding:.75rem 1rem;border-top:1px solid var(--border)}
+.gallery-title{font-size:12px;font-weight:700;color:#fff;margin-bottom:3px}
+.gallery-sub{font-size:10px;color:var(--muted)}
+/* Contact */
+.contact-form input,.contact-form textarea,.contact-form select{width:100%;padding:10px 14px;background:rgba(56,189,248,.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border .2s;resize:none}
+.contact-form input:focus,.contact-form textarea:focus{border-color:var(--sky)}
+.contact-form textarea{min-height:90px}
+.contact-form .form-row{margin-bottom:.85rem}
+.contact-form label{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.btn-send{padding:10px 28px;border:none;border-radius:8px;background:linear-gradient(135deg,#0284c7,var(--sky));color:#fff;font-family:var(--sans);font-weight:700;font-size:12px;cursor:pointer;transition:opacity .2s}
+.btn-send:hover{opacity:.85}
+/* Sidebar mobile toggle */
+#sb-toggle{display:none;position:fixed;bottom:20px;left:20px;z-index:200;width:44px;height:44px;border-radius:50%;background:var(--sky);border:none;cursor:pointer;color:#fff;font-size:18px;box-shadow:0 4px 16px rgba(56,189,248,.4)}
+/* Sim history table */
+.sim-item{display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:7px;border:1px solid var(--border);background:rgba(56,189,248,.03);margin-bottom:4px;font-size:11px}
+.sim-fs{font-family:var(--mono);font-weight:700;font-size:14px}
+/* Responsive */
+@media(max-width:900px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0)}
+  #main{margin-left:0}
+  .section{padding:1rem 1rem 3rem}
+  .grid-4{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+  #sb-toggle{display:flex;align-items:center;justify-content:center}
+}
+@media(max-width:600px){
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  .sec-h{font-size:19px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOADING ═══ -->
+<div id="loading">
+  <div class="logo-load">SIAEU_</div>
+  <div style="text-align:center">
+    <div style="font-size:11px;color:var(--sub);font-family:var(--mono);margin-bottom:10px">SISTEMA INTELIGENTE DE APOIO À ESTABILIDADE DE ENCOSTAS URBANAS</div>
+  </div>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  <div style="display:flex;gap:16px;align-items:center">
+    <div class="load-pct" id="load-pct">0%</div>
+    <div class="load-msg" id="load-msg">Inicializando sistema...</div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div id="toast-wrap"></div>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+  <canvas id="login-canvas"></canvas>
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="8" fill="rgba(56,189,248,0.1)"/>
+        <path d="M6 26 L12 14 L18 20 L24 10 L30 18" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="18" cy="20" r="2.5" fill="#34d399"/>
+        <circle cx="24" cy="10" r="2" fill="#fb923c"/>
+      </svg>
+      <span>SIAEU</span>
+    </div>
+    <div class="login-title">Sistema Inteligente de Apoio à<br>Estabilidade de Encostas Urbanas<br><span style="color:var(--muted);font-size:11px">UNISUAM · Engenharia Civil · 2026/1</span></div>
+    <div class="login-field">
+      <label>Nome do usuário</label>
+      <input type="text" id="login-name" placeholder="Digite seu nome completo..." autocomplete="off">
+    </div>
+    <div class="login-field">
+      <label>Perfil de acesso</label>
+      <select id="login-role">
+        <option value="Engenheiro Civil">Engenheiro Civil</option>
+        <option value="Estudante de Engenharia">Estudante de Engenharia</option>
+        <option value="Pesquisador">Pesquisador</option>
+        <option value="Gestor Público">Gestor Público</option>
+        <option value="Defesa Civil">Defesa Civil</option>
+      </select>
+    </div>
+    <button class="btn-login" onclick="doLogin()">⬢ Entrar na Plataforma</button>
+    <div style="margin-top:1rem;text-align:center;font-size:10px;color:var(--muted);font-family:var(--mono)">
+      TCC 2026/1 · Filipe Pires · Jorge Vasques · Josias Lopes
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12 L5 6 L8 9 L11 4 L14 8" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div><div class="sb-logo-text">SIAEU</div><div class="sb-logo-ver">v2.1 · 2026</div></div>
+    </div>
+    <div class="sb-user">
+      <div class="sb-avatar" id="sb-avatar">FL</div>
+      <div><div class="sb-username" id="sb-name">Usuário</div><div class="sb-role" id="sb-role">—</div></div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-section-label">Plataforma</div>
+      <button class="nav-item active" data-sec="hero" onclick="showSection('hero')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Início</button>
+      <button class="nav-item" data-sec="about" onclick="showSection('about')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Projeto</button>
+      <div class="nav-section-label">Análise</div>
+      <button class="nav-item" data-sec="simulator" onclick="showSection('simulator')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>Simulador FS</button>
+      <button class="nav-item" data-sec="dashboard" onclick="showSection('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>IoT Dashboard</button>
+      <button class="nav-item" data-sec="map" onclick="showSection('map')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Mapa de Risco</button>
+      <div class="nav-section-label">Recursos</div>
+      <button class="nav-item" data-sec="library" onclick="showSection('library')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Biblioteca</button>
+      <button class="nav-item" data-sec="gallery" onclick="showSection('gallery')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Galeria Técnica</button>
+      <button class="nav-item" data-sec="results" onclick="showSection('results')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Resultados</button>
+      <button class="nav-item" data-sec="contact" onclick="showSection('contact')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Contato</button>
+      <div class="nav-section-label">Usuário</div>
+      <button class="nav-item" data-sec="profile" onclick="showSection('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Meu Painel</button>
+    </nav>
+    <div class="sb-status">
+      <div class="status-dot ok"></div>
+      <span>Sistema operacional · <span style="color:var(--em)" id="sb-clock">--:--:--</span></span>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span id="breadcrumb">SIAEU</span> / <span id="breadcrumb-sec" style="color:var(--text)">Início</span>
+      </div>
+      <div class="top-bar-right">
+        <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">Setor R3 · Zona Norte/RJ</div>
+        <div class="status-dot ok" style="flex-shrink:0"></div>
+        <button class="btn-logout" onclick="doLogout()">✕ Sair</button>
+      </div>
+    </div>
+
+    <!-- ══ HERO ══ -->
+    <div id="sec-hero" class="section active">
+      <div style="position:relative;border-radius:14px;overflow:hidden;margin-bottom:1.5rem;min-height:280px;border:1px solid var(--border)">
+        <canvas id="hero-canvas" style="position:absolute;inset:0;width:100%;height:100%;opacity:.6"></canvas>
+        <div style="position:relative;z-index:1;padding:2.5rem 2rem">
+          <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25);font-family:var(--mono);font-size:10px;color:var(--sky);margin-bottom:1rem">
+            <div class="status-dot ok"></div> SISTEMA EM OPERAÇÃO · SETOR R3
+          </div>
+          <h1 style="font-size:clamp(18px,3vw,32px);font-weight:900;color:#fff;line-height:1.2;margin-bottom:.75rem;max-width:600px">
+            Sistema Inteligente de Apoio à<br><span style="background:linear-gradient(90deg,#38bdf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Estabilidade de Encostas Urbanas</span>
+          </h1>
+          <p style="font-size:13px;color:var(--sub);max-width:520px;margin-bottom:1.5rem">Plataforma técnica para análise, prevenção e monitoramento de riscos geotécnicos urbanos. TCC Engenharia Civil — UNISUAM 2026/1.</p>
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+            <button onclick="showSection('simulator')" style="padding:9px 20px;background:linear-gradient(135deg,#0284c7,#38bdf8);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--sans)">⚗ Simular Estabilidade</button>
+            <button onclick="showSection('dashboard')" style="padding:9px 20px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;color:var(--em);font-weight:700;font-size:12px;cursor:pointer;font-family:var(--sans)">◉ Dashboard IoT</button>
+            <button onclick="showSection('about')" style="padding:9px 20px;background:rgba(56,189,248,.05);border:1px solid var(--border);border-radius:8px;color:var(--sub);font-weight:700;font-size:12px;cursor:pointer;font-family:var(--sans)">▸ Ver Projeto</button>
+          </div>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div class="grid-4" style="margin-bottom:1.25rem">
+        <div class="glass card-sm"><div class="kpi-label">Óbitos 2016–2024</div><div class="kpi-val" style="color:var(--dan)">3.200</div><div class="kpi-sub">CEMADEN 2024</div></div>
+        <div class="glass card-sm"><div class="kpi-label">Setores de Risco — RJ</div><div class="kpi-val" style="color:var(--sky)">2.800+</div><div class="kpi-sub">Geo-Rio 2024</div></div>
+        <div class="glass card-sm"><div class="kpi-label">FS após intervenção</div><div class="kpi-val" style="color:var(--em)">1,63</div><div class="kpi-sub">Saturado · DHP + Gabião</div></div>
+        <div class="glass card-sm"><div class="kpi-label">Perdas acumuladas</div><div class="kpi-val" style="color:var(--warn)">R$28bi</div><div class="kpi-sub">1991–2022 · CEPED/UFSC</div></div>
+      </div>
+      <!-- Live monitor bar -->
+      <div class="glass card-sm" id="live-bar">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem">
+          <div class="status-dot ok"></div>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--sky);letter-spacing:.1em">MONITORAMENTO AO VIVO — SETOR R3 ZONA NORTE</span>
+          <span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted)" id="live-time">--:--:--</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem" id="live-sensors"></div>
+      </div>
+    </div>
+
+    <!-- ══ ABOUT ══ -->
+    <div id="sec-about" class="section">
+      <div class="sec-tag">// Sobre o Projeto</div>
+      <h2 class="sec-h">Prevenção de Deslizamentos em Encostas Urbanas</h2>
+      <p class="sec-sub">Os deslizamentos respondem por mais de <strong>40% dos óbitos em desastres naturais no Brasil</strong> — proporção superior ao dobro da média mundial de 17% (UNDRR, 2023). Investimentos preventivos equivalentes a 10–20% das perdas históricas seriam suficientes para eliminar grande parte do risco existente.</p>
+      <div class="grid-2" style="margin-bottom:1.25rem">
+        <div>
+          <div class="glass card-p" style="margin-bottom:1rem">
+            <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem">Timeline do Projeto</p>
+            <div class="timeline" id="timeline-wrap"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <div class="glass card-sm">
+            <div style="font-size:11px;font-weight:700;color:var(--em);margin-bottom:.5rem">Área de Estudo</div>
+            <p style="font-size:11px;color:var(--sub);line-height:1.6">Encosta R3 (alto risco) · Zona Norte, Rio de Janeiro/RJ · Gnaisse facoidal com foliação subparalela · Declividade média 38° · Altura ~80m · 60% cobertura vegetal suprimida</p>
+          </div>
+          <div class="glass card-sm">
+            <div style="font-size:11px;font-weight:700;color:var(--pur);margin-bottom:.5rem">Parâmetros Geotécnicos Adotados</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--sub);line-height:2">
+              <div><span style="color:var(--sky)">Colúvio (0–1,5m):</span> c'=5kPa · φ'=27° · γ=18kN/m³</div>
+              <div><span style="color:var(--sky)">Solo residual:</span> c'=12kPa · φ'=30° · γ=19kN/m³</div>
+              <div><span style="color:var(--warn)">FS mín. saturado:</span> ≥ 1,30 (NBR 11682:2009)</div>
+              <div><span style="color:var(--warn)">FS mín. estático:</span> ≥ 1,50 (NBR 11682:2009)</div>
+            </div>
+          </div>
+          <div class="glass card-sm">
+            <div style="font-size:11px;font-weight:700;color:var(--warn);margin-bottom:.5rem">Equipe UNISUAM</div>
+            <div style="font-size:11px;color:var(--sub);line-height:1.8">
+              Filipe Leite Pires<br>Jorge Luiz Vasques de Souza<br>Josias Portal Lopes<br>
+              <span style="color:var(--muted);font-size:10px">Orient.: Prof.ª Cátia Azevedo dos Santos<br>Coorient.: Prof.ª Maria Rita P. C. Rosendo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Técnicas de Estabilização Analisadas</div>
+      <div class="grid-3" id="tech-cards"></div>
+    </div>
+
+    <!-- ══ SIMULATOR ══ -->
+    <div id="sec-simulator" class="section">
+      <div class="sec-tag">// Simulador de Estabilidade</div>
+      <h2 class="sec-h">Calculadora — Método do Talude Infinito</h2>
+      <div class="code-box" style="margin-bottom:1rem">FS = [ c′ + (γ·z·cos²β − u)·tan φ′ ] / ( γ·z·sin β·cos β ) &nbsp;|&nbsp; u = γ<sub>w</sub>·z·cos²β (saturado) &nbsp;|&nbsp; ABNT NBR 11682:2009</div>
+      <div class="grid-2" style="margin-bottom:1rem">
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem">Parâmetros de Entrada</p>
+          <div id="sliders-wrap"></div>
+          <div class="toggle-wrap" onclick="toggleSaturated()" style="margin-top:.75rem">
+            <span style="font-size:12px;font-weight:600;color:var(--text)">Condição Saturada</span>
+            <div class="toggle" id="sat-toggle"></div>
+          </div>
+          <div style="display:flex;gap:.5rem;margin-top:.75rem;font-size:10px;font-family:var(--mono);color:var(--muted);background:rgba(56,189,248,.04);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;line-height:1.8" id="calc-steps"></div>
+        </div>
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Resultado — Fator de Segurança</p>
+          <div style="text-align:center;margin-bottom:1rem">
+            <div id="fs-value" style="font-family:var(--mono);font-size:56px;font-weight:700;line-height:1;transition:color .4s">—</div>
+            <div id="fs-class" style="font-size:14px;font-weight:700;margin-top:.5rem;transition:color .4s">—</div>
+            <div id="fs-norm" style="font-size:11px;color:var(--muted);margin-top:.25rem">—</div>
+          </div>
+          <div style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px"><span>Crítico &lt;1,0</span><span>FS atual</span><span>Estável ≥1,5</span></div>
+            <div class="risk-bar-wrap"><div class="risk-bar-fill" id="risk-bar-fill" style="width:0"></div></div>
+          </div>
+          <div id="fs-details" style="display:grid;gap:4px"></div>
+        </div>
+      </div>
+      <div class="glass card-p">
+        <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Análise de Sensibilidade Paramétrica</p>
+        <div class="chart-wrap" style="height:200px"><canvas id="chart-sensi" role="img" aria-label="Gráfico de análise de sensibilidade do fator de segurança"></canvas></div>
+        <p style="font-size:10px;color:var(--muted);margin-top:.5rem;font-family:var(--mono)">DHP* = simulação com u=0 (drenos horizontais profundos, condição drenada). Linhas: FS≥1,30 (saturado) e FS≥1,50 (estático) — ABNT NBR 11682:2009.</p>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD ══ -->
+    <div id="sec-dashboard" class="section">
+      <div class="sec-tag">// Dashboard IoT</div>
+      <h2 class="sec-h">Monitoramento em Tempo Real</h2>
+      <p class="sec-sub">Rede de sensores — Setor R3, Zona Norte do Rio de Janeiro. Dados simulados com base nos parâmetros do TCC.</p>
+      <div class="grid-4" style="margin-bottom:1rem" id="iot-kpis"></div>
+      <div class="grid-3" style="margin-bottom:1rem">
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--sky);margin-bottom:.75rem">Pluviometria Acumulada (mm)</p>
+          <div class="chart-wrap" style="height:130px"><canvas id="chart-rain" role="img" aria-label="Gráfico de pluviometria acumulada"></canvas></div>
+        </div>
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:.75rem">Umidade do Solo (%)</p>
+          <div class="chart-wrap" style="height:130px"><canvas id="chart-umid" role="img" aria-label="Gráfico de umidade do solo"></canvas></div>
+        </div>
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--pur);margin-bottom:.75rem">Inclinação do Talude (°)</p>
+          <div class="chart-wrap" style="height:130px"><canvas id="chart-incl" role="img" aria-label="Gráfico de inclinação do talude"></canvas></div>
+        </div>
+      </div>
+      <div class="glass card-p">
+        <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Status Operacional — Rede de Sensores</p>
+        <div id="sensor-table"></div>
+      </div>
+    </div>
+
+    <!-- ══ MAP ══ -->
+    <div id="sec-map" class="section">
+      <div class="sec-tag">// Mapa de Risco Geotécnico</div>
+      <h2 class="sec-h">Mapa Interativo — Zona Norte / RJ</h2>
+      <p class="sec-sub">Setores de risco mapeados pelo Geo-Rio (2024). Clique nos marcadores para detalhes técnicos.</p>
+      <div class="grid-2">
+        <div class="glass card-p" style="position:relative">
+          <div style="position:relative">
+            <svg id="map-svg" viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div class="map-tooltip" id="map-tip"></div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:.75rem;font-size:10px">
+            <span style="display:flex;align-items:center;gap:4px;color:var(--dan)"><span style="width:8px;height:8px;border-radius:2px;background:var(--dan);display:inline-block"></span>R3 Alto</span>
+            <span style="display:flex;align-items:center;gap:4px;color:var(--warn)"><span style="width:8px;height:8px;border-radius:2px;background:var(--warn);display:inline-block"></span>R2 Médio</span>
+            <span style="display:flex;align-items:center;gap:4px;color:var(--em)"><span style="width:8px;height:8px;border-radius:2px;background:var(--em);display:inline-block"></span>R1 Baixo</span>
+            <span style="display:flex;align-items:center;gap:4px;color:var(--sky)"><span style="width:8px;height:8px;border-radius:2px;background:var(--sky);display:inline-block"></span>Infraestrutura DHP</span>
+            <span style="display:flex;align-items:center;gap:4px;color:var(--pur)"><span style="width:8px;height:8px;border-radius:2px;background:var(--pur);display:inline-block"></span>Sensor IoT</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <div class="glass card-p" id="map-detail-box">
+            <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Detalhe do Setor</p>
+            <p style="font-size:12px;color:var(--muted)">Clique em um marcador no mapa para ver informações técnicas detalhadas do setor selecionado.</p>
+          </div>
+          <div class="glass card-p">
+            <p style="font-size:11px;font-weight:700;color:var(--pur);margin-bottom:.75rem">Resumo de Risco</p>
+            <div id="risk-summary"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LIBRARY ══ -->
+    <div id="sec-library" class="section">
+      <div class="sec-tag">// Biblioteca Técnica</div>
+      <h2 class="sec-h">Referências Geotécnicas</h2>
+      <div class="filter-row" id="lib-filters"></div>
+      <div class="grid-3" id="lib-cards"></div>
+    </div>
+
+    <!-- ══ GALLERY ══ -->
+    <div id="sec-gallery" class="section">
+      <div class="sec-tag">// Galeria Técnica</div>
+      <h2 class="sec-h">Diagramas e Esquemas Geotécnicos</h2>
+      <p class="sec-sub">Esquemas técnicos de cortes, sistemas de drenagem, contenção e monitoramento baseados no TCC.</p>
+      <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+
+    <!-- ══ RESULTS ══ -->
+    <div id="sec-results" class="section">
+      <div class="sec-tag">// Resultados do Estudo</div>
+      <h2 class="sec-h">Análise Técnica — Melhoria do Fator de Segurança</h2>
+      <div class="grid-4" style="margin-bottom:1.25rem">
+        <div class="glass card-sm"><div class="kpi-label">FS Inicial (saturado)</div><div class="kpi-val" style="color:var(--dan)">1,18</div><div class="kpi-sub">Abaixo de NBR ≥ 1,30</div></div>
+        <div class="glass card-sm"><div class="kpi-label">FS pós-DHP (saturado)</div><div class="kpi-val" style="color:var(--gold)">1,45</div><div class="kpi-sub">Acima do mínimo normativo</div></div>
+        <div class="glass card-sm"><div class="kpi-label">FS Final integrado</div><div class="kpi-val" style="color:var(--em)">1,63</div><div class="kpi-sub">Supera FS ≥ 1,50 (estático)</div></div>
+        <div class="glass card-sm"><div class="kpi-label">Incremento total</div><div class="kpi-val" style="color:var(--sky)">+38%</div><div class="kpi-sub">Melhoria do fator de segurança</div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:1.25rem">
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Evolução do FS por Intervenção</p>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-fs" role="img" aria-label="Gráfico de evolução do fator de segurança por intervenção"></canvas></div>
+        </div>
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--pur);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Análise de Sensibilidade Paramétrica</p>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-sensi2" role="img" aria-label="Gráfico de sensibilidade paramétrica"></canvas></div>
+        </div>
+      </div>
+      <div class="glass card-p">
+        <p style="font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Orçamento Referenciado — SINAPI/EMOP-RJ 2025</p>
+        <table id="budget-table"></table>
+      </div>
+    </div>
+
+    <!-- ══ CONTACT ══ -->
+    <div id="sec-contact" class="section">
+      <div class="sec-tag">// Contato Profissional</div>
+      <h2 class="sec-h">Equipe & Contato</h2>
+      <div class="grid-2">
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem">Enviar Mensagem</p>
+          <div class="contact-form" id="contact-form">
+            <div class="form-row"><label>Seu nome</label><input type="text" id="c-name" placeholder="Nome completo"></div>
+            <div class="form-row"><label>E-mail</label><input type="email" id="c-email" placeholder="seu@email.com"></div>
+            <div class="form-row"><label>Assunto</label>
+              <select id="c-subject">
+                <option>Dúvida técnica sobre o TCC</option>
+                <option>Colaboração acadêmica</option>
+                <option>Consultoria geotécnica</option>
+                <option>Outro</option>
+              </select>
+            </div>
+            <div class="form-row"><label>Mensagem</label><textarea id="c-msg" placeholder="Descreva sua mensagem..."></textarea></div>
+            <button class="btn-send" onclick="sendContact()">✉ Enviar Mensagem</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <div class="glass card-p">
+            <p style="font-size:11px;font-weight:700;color:var(--em);margin-bottom:.75rem">Autores</p>
+            <div id="team-cards"></div>
+          </div>
+          <div class="glass card-p">
+            <p style="font-size:11px;font-weight:700;color:var(--sky);margin-bottom:.75rem">Links Profissionais</p>
+            <div style="display:flex;flex-direction:column;gap:.5rem" id="prof-links"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PROFILE ══ -->
+    <div id="sec-profile" class="section">
+      <div class="sec-tag">// Painel do Usuário</div>
+      <h2 class="sec-h" id="profile-greet">Bem-vindo ao Painel Técnico</h2>
+      <div class="grid-4" style="margin-bottom:1.25rem" id="profile-kpis"></div>
+      <div class="grid-2">
+        <div class="glass card-p">
+          <p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Histórico de Simulações</p>
+          <div id="sim-history">
+            <div style="text-align:center;padding:2rem;color:var(--muted);font-size:12px">
+              <div style="font-size:24px;margin-bottom:.5rem">⚗</div>
+              Nenhuma simulação realizada. Acesse o Simulador FS para começar.
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <div class="glass card-p">
+            <p style="font-size:11px;font-weight:700;color:var(--pur);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Documentação Técnica</p>
+            <div id="docs-list"></div>
+          </div>
+          <div class="glass card-p">
+            <p style="font-size:11px;font-weight:700;color:var(--warn);margin-bottom:.75rem">Informações do Projeto</p>
+            <div style="font-size:11px;line-height:2;color:var(--sub)">
+              <div>Disciplina: <span style="color:var(--text)">TCC — Engenharia Civil 2026/1</span></div>
+              <div>Instituição: <span style="color:var(--text)">UNISUAM Bonsucesso</span></div>
+              <div>Norma principal: <span style="color:var(--text)">ABNT NBR 11682:2009</span></div>
+              <div>Método: <span style="color:var(--text)">Talude Infinito + Bishop</span></div>
+              <div>Plataforma: <span style="color:var(--sky);font-family:var(--mono)">SIAEU v2.1</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FOOTER ══ -->
+    <footer style="padding:1.5rem 1.75rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;font-size:10px;color:var(--muted);font-family:var(--mono)">
+      <span>© 2026 SIAEU · UNISUAM Bonsucesso · Engenharia Civil · 2026/1</span>
+      <span>Geotecnia · Monitoramento IoT · Prevenção de Deslizamentos · ABNT NBR 11682:2009</span>
+    </footer>
+  </div>
+</div>
+
+<!-- Sidebar mobile toggle -->
+<button id="sb-toggle" onclick="toggleSidebar()">☰</button>
+
+<script>
+// ══ STATE ══
+const S = {
+  user: null,
+  section: 'hero',
+  simulations: JSON.parse(localStorage.getItem('siaeu_sims') || '[]'),
+  params: { beta:35, gamma:18, c:5, phi:27, z:1.5, saturated:true },
+  charts: {},
+  iotTick: 0,
+  iotInterval: null,
+  sidebarOpen: false
+};
+
+// ══ LOADING ══
+const loadMsgs = ['Inicializando sistema...','Carregando módulos geotécnicos...','Conectando sensores IoT...','Configurando dashboard...','Compilando banco de dados...','Sistema pronto.'];
+let loadProg = 0;
+const loadInterval = setInterval(() => {
+  loadProg += Math.random() * 18 + 4;
+  if (loadProg > 100) loadProg = 100;
+  document.getElementById('load-bar').style.width = loadProg + '%';
+  document.getElementById('load-pct').textContent = Math.floor(loadProg) + '%';
+  document.getElementById('load-msg').textContent = loadMsgs[Math.min(Math.floor(loadProg/18), loadMsgs.length-1)];
+  if (loadProg >= 100) {
+    clearInterval(loadInterval);
+    setTimeout(() => {
+      document.getElementById('loading').style.opacity = '0';
+      document.getElementById('loading').style.transition = 'opacity .5s';
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+        const saved = localStorage.getItem('siaeu_user');
+        if (saved) {
+          S.user = JSON.parse(saved);
+          showApp();
+        } else {
+          document.getElementById('login-screen').style.display = 'flex';
+          initLoginCanvas();
+        }
+      }, 500);
+    }, 300);
+  }
+}, 150);
+
+// ══ LOGIN CANVAS ══
+function initLoginCanvas() {
+  const c = document.getElementById('login-canvas');
+  const ctx = c.getContext('2d');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  ctx.fillStyle = '#020810'; ctx.fillRect(0,0,c.width,c.height);
+  let off = 0;
+  function draw() {
+    ctx.fillStyle = 'rgba(2,8,16,0.04)'; ctx.fillRect(0,0,c.width,c.height);
+    for (let i=0; i<18; i++) {
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(56,189,248,${0.015 + i*0.003})`;
+      ctx.lineWidth = 1;
+      for (let x=0; x<=c.width; x+=8) {
+        const y = c.height*(i/18) + Math.sin(x*0.008+off+i*0.6)*35 + Math.cos(x*0.015+i)*18;
+        x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    off += 0.006;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ══ LOGIN ══
+function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const role = document.getElementById('login-role').value;
+  if (!name) { toast('Digite seu nome para continuar.','warn'); return; }
+  S.user = { name, role, loginTime: new Date().toISOString(), id: Date.now() };
+  localStorage.setItem('siaeu_user', JSON.stringify(S.user));
+  document.getElementById('login-screen').style.opacity = '0';
+  document.getElementById('login-screen').style.transition = 'opacity .4s';
+  setTimeout(() => { document.getElementById('login-screen').style.display='none'; showApp(); }, 400);
+}
+document.addEventListener('keydown', e => { if (e.key==='Enter' && document.getElementById('login-screen').style.display==='flex') doLogin(); });
+
+function doLogout() {
+  localStorage.removeItem('siaeu_user');
+  S.user = null;
+  if (S.iotInterval) clearInterval(S.iotInterval);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-screen').style.opacity = '1';
+  document.getElementById('login-name').value = '';
+}
+
+// ══ APP INIT ══
+function showApp() {
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sb-name').textContent = S.user.name;
+  document.getElementById('sb-role').textContent = S.user.role;
+  document.getElementById('sb-avatar').textContent = S.user.name.slice(0,2).toUpperCase();
+  initAll();
+  showSection('hero');
+  toast(`Bem-vindo, ${S.user.name}!`, 'ok');
+  setInterval(() => {
+    const t = new Date().toLocaleTimeString('pt-BR');
+    const el = document.getElementById('sb-clock');
+    const lt = document.getElementById('live-time');
+    if(el) el.textContent = t;
+    if(lt) lt.textContent = t;
+  }, 1000);
+}
+
+// ══ NAVIGATION ══
+const sectionNames = {hero:'Início',about:'Projeto',simulator:'Simulador FS',dashboard:'IoT Dashboard',map:'Mapa de Risco',library:'Biblioteca',gallery:'Galeria Técnica',results:'Resultados',contact:'Contato',profile:'Meu Painel'};
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  document.querySelector(`[data-sec="${id}"]`)?.classList.add('active');
+  document.getElementById('breadcrumb-sec').textContent = sectionNames[id]||id;
+  S.section = id;
+  if (id==='simulator') initSimulator();
+  if (id==='dashboard') initDashboard();
+  if (id==='results') initResults();
+  if (id==='profile') updateProfile();
+  if (id==='hero') initHeroCanvas();
+  // Close mobile sidebar
+  if (window.innerWidth <= 900) { document.getElementById('sidebar').classList.remove('open'); }
+  window.scrollTo(0,0);
+}
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.classList.toggle('open');
+}
+
+// ══ TOAST ══
+function toast(msg, type='info', duration=3000) {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, duration);
+}
+
+// ══ HERO CANVAS ══
+function initHeroCanvas() {
+  const c = document.getElementById('hero-canvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const rect = c.parentElement.getBoundingClientRect();
+  c.width = rect.width || 700; c.height = rect.height || 280;
+  let off = 0;
+  function draw() {
+    if (!document.getElementById('sec-hero').classList.contains('active')) return;
+    ctx.fillStyle = 'rgba(5,11,24,0.05)'; ctx.fillRect(0,0,c.width,c.height);
+    for (let i=0; i<20; i++) {
+      ctx.beginPath();
+      const alpha = 0.02 + (i/20)*0.06;
+      ctx.strokeStyle = `rgba(56,189,248,${alpha})`;
+      ctx.lineWidth = 1;
+      for (let x=0; x<=c.width; x+=6) {
+        const y = c.height*0.3 + (i - 10) * 15 + Math.sin(x*0.01+off*1.2+i*0.5)*25 + Math.cos(x*0.02+i*0.3)*12;
+        x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    // Grid
+    ctx.strokeStyle = 'rgba(56,189,248,0.04)'; ctx.lineWidth = 0.5;
+    for(let x=0;x<c.width;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,c.height);ctx.stroke();}
+    for(let y=0;y<c.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke();}
+    off += 0.005;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ══ LIVE SENSORS ══
+function initLiveSensors() {
+  const sensors = [
+    {name:'Umidade',val:()=>(68+Math.sin(Date.now()*0.0003)*9).toFixed(1),unit:'%',warn:75},
+    {name:'Chuva 24h',val:()=>(85+Math.cos(Date.now()*0.0002)*8).toFixed(0),unit:'mm',warn:90},
+    {name:'Inclinação',val:()=>(2.1+Math.sin(Date.now()*0.0004)*0.3).toFixed(2),unit:'°',warn:2.8},
+    {name:'Nível Freático',val:()=>(1.2+Math.cos(Date.now()*0.0005)*0.15).toFixed(2),unit:'m',warn:0.5},
+    {name:'Deslocamento',val:()=>Math.abs(Math.sin(Date.now()*0.0006)*0.18).toFixed(2),unit:'mm/h',warn:0.3},
+    {name:'Alerta',val:()=>'MODERADO',unit:'',warn:null},
+  ];
+  function update() {
+    const el = document.getElementById('live-sensors');
+    if(!el) return;
+    el.innerHTML = sensors.map(s=>{
+      const v = s.val();
+      const warn = s.warn !== null && parseFloat(v) > s.warn;
+      const col = warn ? 'var(--warn)' : 'var(--em)';
+      return `<div style="background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.08);border-radius:7px;padding:.5rem .6rem">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px">${s.name}</div>
+        <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${col}">${v}${s.unit}</div>
+      </div>`;
+    }).join('');
+  }
+  update();
+  setInterval(update, 2500);
+}
+
+// ══ ABOUT ══
+function initAbout() {
+  const tl = [
+    {date:'Jan 2026',title:'Revisão Sistemática',desc:'90+ publicações indexadas (2014–2024): Scopus, Web of Science, SciELO. Seleção por critérios PRISMA adaptados.'},
+    {date:'Mar 2026',title:'Diagnóstico Geotécnico',desc:'Caracterização do perfil: colúvio 0–1,5m (c′=5kPa, φ′=27°), solo residual jovem (c′=12kPa, φ′=30°). Base: Geo-Rio 2024.'},
+    {date:'Abr 2026',title:'Cálculo do FS',desc:'Método do Talude Infinito. FS inicial: 1,18 (saturado) — abaixo do mínimo normativo (NBR 11682: FS≥1,30).'},
+    {date:'Abr 2026',title:'Proposta de Intervenção',desc:'Drenos horizontais profundos (DHP) + muro gabião + bioengenharia vetiver + monitoramento IoT integrado.'},
+    {date:'Mai 2026',title:'Resultado Final',desc:'FS pós-intervenção: 1,63 (saturado) — supera FS≥1,30 e FS≥1,50 (estático). Orçamento SINAPI: R$312.375.'},
+  ];
+  document.getElementById('timeline-wrap').innerHTML = tl.map((t,i)=>`
+    <div class="tl-item">${i<tl.length-1?'<div class="tl-line"></div>':''}
+      <div class="tl-dot">${i+1}</div>
+      <div class="tl-content">
+        <div class="tl-date">${t.date}</div>
+        <div class="tl-title">${t.title}</div>
+        <div class="tl-desc">${t.desc}</div>
+      </div>
+    </div>`).join('');
+
+  const techs = [
+    {name:'Drenagem Profunda',eff:'Alta',cost:'Médio',desc:'DHP Ø75–150mm, espaçamento 2–5m, L=10–30m. Atua diretamente nas poropressões.',badge:'badge-em'},
+    {name:'Muro de Gabião',eff:'Alta',cost:'Baixo-Médio',desc:'Cestas metálicas c/ pedra. FS=1,72 (estático). Flexibilidade estrutural e boa permeabilidade.',badge:'badge-sky'},
+    {name:'Solo Pregado',eff:'Alta',cost:'Médio',desc:'CA-50 φ25mm, L=6–20m, face shotcrete 10–15cm. Reforço in situ do maciço.',badge:'badge-em'},
+    {name:'Bioengenharia',eff:'Média',cost:'Baixo',desc:'Vetiver: raízes 3–4m, reduz escoamento 71% após 12 meses. Limitação: decl.>35°.',badge:'badge-warn'},
+    {name:'Monitoramento IoT',eff:'Suporte',cost:'Médio',desc:'LoRa/4G/5G. Alerta EWS. Retorno 10–15× em redução de perdas. Não substitui estrutural.',badge:'badge-pur'},
+    {name:'Geossintéticos',eff:'Complementar',cost:'Baixo-Médio',desc:'Geocélulas reduzem erosão 85%. Filtro, separador e reforço em soluções mistas.',badge:'badge-sky'},
+  ];
+  document.getElementById('tech-cards').innerHTML = techs.map(t=>`
+    <div class="glass card-sm">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+        <span style="font-size:13px;font-weight:700;color:#fff">${t.name}</span>
+        <span class="badge ${t.badge}">${t.eff}</span>
+      </div>
+      <p style="font-size:11px;color:var(--sub);margin-bottom:.5rem">${t.desc}</p>
+      <div style="font-size:10px;color:var(--muted)">Custo: <span style="color:var(--text)">${t.cost}</span></div>
+    </div>`).join('');
+}
+
+// ══ SIMULATOR ══
+let simChartInited = false;
+const sliderDefs = [
+  {id:'beta',label:'β — Inclinação do talude',min:15,max:60,step:.5,unit:'°'},
+  {id:'gamma',label:'γ — Peso específico do solo',min:14,max:22,step:.5,unit:' kN/m³'},
+  {id:'c',label:"c′ — Coesão efetiva",min:0,max:30,step:.5,unit:' kPa'},
+  {id:'phi',label:"φ′ — Ângulo de atrito efetivo",min:10,max:45,step:.5,unit:'°'},
+  {id:'z',label:'z — Profundidade de ruptura',min:.5,max:5,step:.1,unit:' m'},
+];
+function initSimulator() {
+  if (document.getElementById('sliders-wrap').innerHTML) { calcFS(); return; }
+  document.getElementById('sliders-wrap').innerHTML = sliderDefs.map(s=>`
+    <div style="margin-bottom:.85rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <label style="font-size:11px;color:var(--sub)">${s.label}</label>
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--sky)" id="val-${s.id}">${S.params[s.id]}${s.unit}</span>
+      </div>
+      <input type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${S.params[s.id]}" 
+        oninput="S.params['${s.id}']=parseFloat(this.value);document.getElementById('val-${s.id}').textContent=this.value+'${s.unit}';calcFS()">
+    </div>`).join('');
+  updateSatToggle();
+  calcFS();
+  initSensiChart();
+}
+function toggleSaturated() {
+  S.params.saturated = !S.params.saturated;
+  updateSatToggle();
+  calcFS();
+}
+function updateSatToggle() {
+  const t = document.getElementById('sat-toggle');
+  if(t) t.className = 'toggle' + (S.params.saturated?' on':'');
+}
+function calcFS() {
+  const {beta,gamma,c,phi,z,saturated} = S.params;
+  const rad = d => d*Math.PI/180;
+  const b=rad(beta), p=rad(phi), gw=9.81;
+  const cosb2 = Math.cos(b)**2;
+  const u = saturated ? gw*z*cosb2 : 0;
+  const num = c + (gamma*z*cosb2 - u)*Math.tan(p);
+  const den = gamma*z*Math.sin(b)*Math.cos(b);
+  const fs = den>0 ? num/den : 999;
+  const minFS = saturated ? 1.3 : 1.5;
+  let cls, col;
+  if(fs>=1.5){cls='ESTÁVEL';col='var(--em)'}
+  else if(fs>=1.3){cls='ACEITÁVEL';col='var(--gold)'}
+  else if(fs>=1.0){cls='INSTÁVEL';col='var(--warn)'}
+  else{cls='CRÍTICO';col='var(--dan)'}
+  document.getElementById('fs-value').textContent = fs.toFixed(3);
+  document.getElementById('fs-value').style.color = col;
+  document.getElementById('fs-class').textContent = cls;
+  document.getElementById('fs-class').style.color = col;
+  const margin = ((fs-minFS)/minFS*100).toFixed(1);
+  document.getElementById('fs-norm').textContent = `FS mínimo (${saturated?'sat.':'est.'}): ${minFS} | Margem: ${margin > 0 ? '+' : ''}${margin}%`;
+  const pct = Math.min(fs/2.2*100, 100);
+  const fill = document.getElementById('risk-bar-fill');
+  fill.style.width = pct+'%';
+  fill.style.background = `linear-gradient(90deg,var(--dan),var(--warn),${col})`;
+  document.getElementById('fs-details').innerHTML = [
+    ['Pressão neutra (u)', u.toFixed(2)+' kPa', saturated?'var(--warn)':'var(--em)'],
+    ['Condição hídrica', saturated?'Saturada':'Drenada', saturated?'var(--warn)':'var(--em)'],
+    ['Método', 'Talude Infinito', 'var(--sky)'],
+    ['Norma', 'ABNT NBR 11682:2009', 'var(--sky)'],
+  ].map(([k,v,c])=>`
+    <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;border-radius:6px;background:rgba(56,189,248,.04);font-size:11px">
+      <span style="color:var(--muted)">${k}</span><span style="color:${c};font-weight:700;font-family:var(--mono)">${v}</span>
+    </div>`).join('');
+  document.getElementById('calc-steps').innerHTML = `
+    <div style="width:100%">
+      <div style="color:var(--sky);margin-bottom:4px">Passos do cálculo:</div>
+      cos²β = ${cosb2.toFixed(4)} | u = ${u.toFixed(2)} kPa<br>
+      Num = ${num.toFixed(4)} kPa | Den = ${den.toFixed(4)} kPa<br>
+      FS = ${num.toFixed(4)} / ${den.toFixed(4)} = <strong style="color:${col}">${fs.toFixed(4)}</strong>
+    </div>`;
+  updateSensiChart();
+}
+function calcFSRaw(c,phi,beta,z,gamma,sat){
+  const b=beta*Math.PI/180, p=phi*Math.PI/180, gw=9.81;
+  const cosb2=Math.cos(b)**2, u=sat?gw*z*cosb2:0;
+  const num=c+(gamma*z*cosb2-u)*Math.tan(p), den=gamma*z*Math.sin(b)*Math.cos(b);
+  return den>0?+(num/den).toFixed(3):0;
+}
+function getSensiData(){
+  const {beta,gamma,c,phi,z,saturated} = S.params;
+  return [
+    {label:'β−5°', v:calcFSRaw(c,phi,beta-5,z,gamma,saturated)},
+    {label:'Atual', v:calcFSRaw(c,phi,beta,z,gamma,saturated)},
+    {label:'β+5°', v:calcFSRaw(c,phi,beta+5,z,gamma,saturated)},
+    {label:'c′+50%', v:calcFSRaw(c*1.5,phi,beta,z,gamma,saturated)},
+    {label:'φ′+5°', v:calcFSRaw(c,phi+5,beta,z,gamma,saturated)},
+    {label:'DHP*', v:calcFSRaw(c,phi,beta,z,gamma,false)},
+  ];
+}
+function barColor(v){ return v>=1.5?'rgba(52,211,153,.7)':v>=1.3?'rgba(251,191,36,.7)':v>=1?'rgba(251,146,60,.7)':'rgba(248,113,113,.7)'; }
+function initSensiChart(){
+  if(simChartInited) return;
+  simChartInited=true;
+  const d = getSensiData();
+  S.charts.sensi = new Chart(document.getElementById('chart-sensi'),{
+    type:'bar',
+    data:{labels:d.map(x=>x.label),datasets:[{data:d.map(x=>x.v),backgroundColor:d.map(x=>barColor(x.v)),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'FS = '+c.raw}}},scales:{
+      x:{ticks:{color:'#4a6080',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(56,189,248,.05)'}},
+      y:{min:.5,max:2.5,ticks:{color:'#4a6080',font:{family:'JetBrains Mono',size:10}},grid:{color:'rgba(56,189,248,.05)'},
+        afterDataLimits:scale=>{scale.min=.5;scale.max=2.5;}},
+    },
+    annotation:{annotations:{l1:{type:'line',yMin:1.3,yMax:1.3,borderColor:'rgba(251,146,60,.6)',borderWidth:1.5,borderDash:[4,3]},l2:{type:'line',yMin:1.5,yMax:1.5,borderColor:'rgba(52,211,153,.6)',borderWidth:1.5,borderDash:[4,3]}}}}
+  });
+}
+function updateSensiChart(){
+  if(!S.charts.sensi) return;
+  const d = getSensiData();
+  S.charts.sensi.data.labels = d.map(x=>x.label);
+  S.charts.sensi.data.datasets[0].data = d.map(x=>x.v);
+  S.charts.sensi.data.datasets[0].backgroundColor = d.map(x=>barColor(x.v));
+  S.charts.sensi.update('none');
+  // Save simulation
+  const fs = calcFSRaw(S.params.c,S.params.phi,S.params.beta,S.params.z,S.params.gamma,S.params.saturated);
+  const sim = {...S.params, fs, date: new Date().toLocaleString('pt-BR'), risk: fs>=1.5?'ESTÁVEL':fs>=1.3?'ACEITÁVEL':fs>=1?'INSTÁVEL':'CRÍTICO'};
+  S.simulations = [...S.simulations.slice(-29), sim];
+  localStorage.setItem('siaeu_sims', JSON.stringify(S.simulations));
+}
+
+// ══ DASHBOARD ══
+let iotInited = false;
+const RAIN_DATA = Array.from({length:30},(_,i)=>+(18+i*3.2+Math.sin(i*.8)*12).toFixed(0));
+const UMID_DATA = Array.from({length:30},(_,i)=>+(62+Math.sin(i*.5)*10+i*.4).toFixed(1));
+const INCL_DATA = Array.from({length:30},(_,i)=>+(1.8+Math.sin(i*.6)*.5+i*.015).toFixed(2));
+const LABELS = Array.from({length:30},(_,i)=>i+':00');
+function initDashboard(){
+  if(iotInited){return;}
+  iotInited=true;
+  const mkChart=(id,data,color,min,max,refY)=>new Chart(document.getElementById(id),{
+    type:'line',
+    data:{labels:LABELS,datasets:[{data,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:color.replace(')',',0.08)').replace('rgb','rgba'),tension:.4,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw}}},scales:{
+      x:{ticks:{color:'#4a6080',font:{size:8},maxTicksLimit:6},grid:{color:'rgba(56,189,248,.05)'}},
+      y:{min,max,ticks:{color:'#4a6080',font:{size:9}},grid:{color:'rgba(56,189,248,.05)'}},
+    }}
+  });
+  S.charts.rain = mkChart('chart-rain',RAIN_DATA,'rgb(56,189,248)',0,140,100);
+  S.charts.umid = mkChart('chart-umid',UMID_DATA,'rgb(251,191,36)',40,100,80);
+  S.charts.incl = mkChart('chart-incl',INCL_DATA,'rgb(167,139,250)',0.5,4,3);
+  document.getElementById('iot-kpis').innerHTML = [
+    {l:'Sensores Ativos',v:'5/6',col:'var(--em)',s:'Sistema operacional'},
+    {l:'Chuva 24h',v:'92 mm',col:'var(--warn)',s:'Limiar: 100mm/24h'},
+    {l:'Umidade Máx.',v:'82%',col:'var(--gold)',s:'Sensor S04 — atenção'},
+    {l:'Nível de Risco',v:'MODERADO',col:'var(--warn)',s:'CEMADEN threshold'},
+  ].map(m=>`<div class="glass card-sm"><div class="kpi-label">${m.l}</div><div class="kpi-val" style="color:${m.col};font-size:20px">${m.v}</div><div class="kpi-sub">${m.s}</div></div>`).join('');
+  const sens=[
+    {id:'S01',local:'Crista Sul',u:71,i:2.3,c:92,st:'warn'},
+    {id:'S02',local:'Meia-encosta E',u:65,i:1.8,c:88,st:'ok'},
+    {id:'S03',local:'Base Norte',u:58,i:1.2,c:84,st:'ok'},
+    {id:'S04',local:'Dreno DHP-3',u:82,i:3.1,c:95,st:'alert'},
+    {id:'S05',local:'Talude Rua A',u:61,i:2.0,c:89,st:'warn'},
+  ];
+  document.getElementById('sensor-table').innerHTML = `
+    <table>
+      <thead><tr><th>ID</th><th>Localização</th><th>Umidade (%)</th><th>Inclinação (°)</th><th>Chuva (mm)</th><th>Status</th></tr></thead>
+      <tbody>${sens.map(s=>`<tr>
+        <td class="td-mono" style="color:var(--sky)">${s.id}</td>
+        <td>${s.local}</td>
+        <td style="color:${s.u>75?'var(--warn)':'var(--em)'}" class="td-mono">${s.u}%</td>
+        <td style="color:${s.i>2.5?'var(--dan)':s.i>2?'var(--gold)':'var(--em)'}" class="td-mono">${s.i}°</td>
+        <td style="color:${s.c>90?'var(--warn)':'var(--sub)'}" class="td-mono">${s.c}</td>
+        <td><span class="badge ${s.st==='ok'?'badge-em':s.st==='warn'?'badge-warn':'badge-dan'}">${s.st==='ok'?'NORMAL':s.st==='warn'?'ATENÇÃO':'ALERTA'}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  // Live update IoT
+  S.iotInterval = setInterval(()=>{
+    [S.charts.rain, S.charts.umid, S.charts.incl].forEach((ch,ci)=>{
+      const base = [95,70,2.2][ci], amp = [8,5,.3][ci];
+      ch.data.datasets[0].data.push(+(base+Math.sin(Date.now()*.001+ci)*amp).toFixed(2));
+      ch.data.datasets[0].data.shift();
+      ch.update('none');
+    });
+  }, 3000);
+}
+
+// ══ MAP ══
+function initMap(){
+  const svg = document.getElementById('map-svg');
+  if(svg.children.length > 0) return;
+  // Background
+  svg.innerHTML = `
+    <rect width="600" height="340" fill="rgba(5,11,24,1)"/>
+    <defs><linearGradient id="terrG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(56,189,248,0.03)"/><stop offset="100%" stop-color="rgba(52,211,153,0.02)"/>
+    </linearGradient></defs>
+    ${Array.from({length:12},(_,i)=>`<line x1="0" y1="${i*28+2}" x2="600" y2="${i*28+2}" stroke="rgba(56,189,248,0.04)" stroke-width="1"/>`).join('')}
+    ${Array.from({length:13},(_,i)=>`<line x1="${i*48}" y1="0" x2="${i*48}" y2="340" stroke="rgba(56,189,248,0.04)" stroke-width="1"/>`).join('')}
+    <path d="M 0 290 Q 80 265 160 220 Q 240 178 340 145 Q 420 120 520 105 L 600 98 L600 340 L0 340Z" fill="rgba(52,211,153,.04)" stroke="none"/>
+    <path d="M 0 310 Q 120 288 200 255 Q 280 225 370 205 Q 460 185 560 175 L600 172 L600 340 L0 340Z" fill="rgba(56,189,248,.03)" stroke="none"/>
+    <path d="M 0 280 Q 100 255 170 210 Q 250 165 350 135 Q 440 112 560 98" stroke="rgba(52,211,153,.2)" stroke-width="1.5" fill="none"/>
+    <!-- Connections -->
+    <line x1="190" y1="125" x2="290" y2="175" stroke="rgba(56,189,248,.18)" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="290" y1="175" x2="380" y2="115" stroke="rgba(56,189,248,.12)" stroke-width="1" stroke-dasharray="4 3"/>
+    <line x1="140" y1="235" x2="225" y2="160" stroke="rgba(56,189,248,.12)" stroke-width="1" stroke-dasharray="4 3"/>
+    <text x="10" y="330" font-size="9" fill="#1e3a5f" font-family="monospace">Zona Norte — Rio de Janeiro/RJ</text>
+    <text x="10" y="338" font-size="7" fill="#1e3a5f" font-family="monospace">Ref: Geo-Rio 2024 · UNISUAM TCC 2026</text>`;
+  const pts = [
+    {id:'R3-01',x:190,y:125,label:'Setor Principal',risk:'R3',fs:'1.18',st:'alert',desc:'Colúvio 0–1,5m · Decl. 38° · 60% veg. suprimida',r:14,col:'#f87171'},
+    {id:'R3-02',x:290,y:175,label:'Crista Sul',risk:'R3',fs:'1.22',st:'alert',desc:'Gnaisse facoidal · Foliação subparalela 35°',r:13,col:'#f87171'},
+    {id:'R2-03',x:380,y:115,label:'Meia-encosta L',risk:'R2',fs:'1.41',st:'warn',desc:'Solo residual maduro · Drenagem parcial',r:12,col:'#fb923c'},
+    {id:'R2-04',x:140,y:235,label:'Base Norte',risk:'R2',fs:'1.48',st:'warn',desc:'Bacia de acumulação · Colúvio espesso',r:12,col:'#fb923c'},
+    {id:'R1-05',x:470,y:195,label:'Encosta L',risk:'R1',fs:'1.68',st:'ok',desc:'Cobertura vegetal densa · φ′=32°',r:11,col:'#34d399'},
+    {id:'DHP-1',x:225,y:148,label:'Dreno DHP-01',risk:'Infra',fs:'—',st:'ok',desc:'Dreno Ø100mm · L=15m · Em operação',r:7,col:'#38bdf8'},
+    {id:'DHP-2',x:248,y:170,label:'Dreno DHP-02',risk:'Infra',fs:'—',st:'ok',desc:'Dreno Ø100mm · L=12m · Em operação',r:7,col:'#38bdf8'},
+    {id:'SEN-1',x:200,y:135,label:'Sensor S01',risk:'IoT',fs:'—',st:'warn',desc:'Umidade: 71% · Inclinação: 2.3° · LoRa/4G',r:8,col:'#a78bfa'},
+  ];
+  pts.forEach(p=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.style.cursor='pointer';
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx',p.x); circle.setAttribute('cy',p.y); circle.setAttribute('r',p.r);
+    circle.setAttribute('fill',p.col+'33'); circle.setAttribute('stroke',p.col); circle.setAttribute('stroke-width','1.5');
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',p.x); txt.setAttribute('y',p.y+4); txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','8'); txt.setAttribute('fill',p.col); txt.setAttribute('font-weight','700'); txt.setAttribute('font-family','monospace');
+    txt.textContent = p.risk==='Infra'?'D':p.risk==='IoT'?'S':p.risk.split('-')[0];
+    g.appendChild(circle); g.appendChild(txt);
+    g.addEventListener('mouseover',e=>{
+      const tip = document.getElementById('map-tip');
+      tip.style.display='block'; tip.style.left=(e.offsetX+12)+'px'; tip.style.top=(e.offsetY-10)+'px';
+      tip.innerHTML=`<div style="color:${p.col};font-weight:700;margin-bottom:4px">${p.id} — ${p.label}</div><div style="color:var(--sub)">${p.desc}</div>${p.fs!=='—'?`<div style="margin-top:4px;color:var(--sky)">FS = ${p.fs}</div>`:''}`;
+    });
+    g.addEventListener('mouseleave',()=>{document.getElementById('map-tip').style.display='none';});
+    g.addEventListener('click',()=>showMapDetail(p));
+    svg.appendChild(g);
+  });
+  // Risk summary
+  document.getElementById('risk-summary').innerHTML = [
+    ['R3 Alto Risco','2','var(--dan)'],['R2 Médio Risco','2','var(--warn)'],['R1 Baixo Risco','1','var(--em)'],['Infraestrutura DHP','2','var(--sky)'],['Sensores IoT','1','var(--pur)'],
+  ].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .5rem;border-bottom:1px solid var(--border);font-size:11px">
+    <div style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block"></span><span style="color:var(--sub)">${l}</span></div>
+    <span style="color:${c};font-weight:700;font-family:var(--mono)">${v} setores</span>
+  </div>`).join('');
+}
+function showMapDetail(p){
+  const box = document.getElementById('map-detail-box');
+  box.innerHTML=`<p style="font-size:11px;font-weight:700;color:var(--sky);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem">Detalhe — ${p.id}</p>
+    <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:.4rem">${p.label}</div>
+    <p style="font-size:11px;color:var(--sub);margin-bottom:.75rem">${p.desc}</p>
+    ${[['Risco',p.risk,`color:${p.col}`],['FS Atual',p.fs,'color:var(--sky)'],['Status',p.st==='ok'?'Normal':p.st==='warn'?'Atenção':'Alerta',p.st==='ok'?'color:var(--em)':p.st==='warn'?'color:var(--gold)':'color:var(--dan)']].map(([k,v,c])=>
+    `<div style="display:flex;justify-content:space-between;padding:.4rem .6rem;border-radius:6px;background:rgba(56,189,248,.04);font-size:11px;margin-bottom:4px">
+      <span style="color:var(--muted)">${k}</span><span style="${c};font-weight:700;font-family:var(--mono)">${v}</span>
+    </div>`).join('')}`;
+}
+
+// ══ LIBRARY ══
+const libData = [
+  {cat:'Norma',title:'ABNT NBR 11682:2009',desc:'Estabilidade de encostas. FS ≥ 1,5 (estático), FS ≥ 1,3 (saturado). Norma principal do projeto.',col:'var(--sky)'},
+  {cat:'Norma',title:'ABNT NBR 5629:2022',desc:'Tirantes ancorados no solo. Projeto, execução e ensaios de arrancamento.',col:'var(--sky)'},
+  {cat:'Norma',title:'ABNT NBR 6122:2022',desc:'Fundações. Microestacas e estacas raiz em obras de contenção.',col:'var(--sky)'},
+  {cat:'Norma',title:'ABNT NBR 10844:1989',desc:'Instalações prediais de drenagem de águas pluviais. Dimensionamento de canaletas.',col:'var(--sky)'},
+  {cat:'Manual',title:'Manual Mapeamento de Risco (MDR, 2022)',desc:'Metodologia padronizada para mapeamento de setores de risco geológico.',col:'var(--pur)'},
+  {cat:'Manual',title:'Geo-Rio (2024)',desc:'2.800 setores de risco mapeados no Rio de Janeiro. ~900 classificados como alto/muito alto risco.',col:'var(--pur)'},
+  {cat:'Artigo',title:'Calvello et al. (2022)',desc:'Sistemas EWS: limiar crítico 100mm/24h + 150mm/96h. Taxa de falsos alarmes: 20–40%.',col:'var(--gold)'},
+  {cat:'Artigo',title:'Intrieri et al. (2020)',desc:'IoT e machine learning aplicados à previsão de deslizamentos com antecedência de 6–24h.',col:'var(--gold)'},
+  {cat:'Artigo',title:'Stokes et al. (2014)',desc:'Bioengenharia: raízes como microestacas naturais, +50% resistência ao cisalhamento.',col:'var(--gold)'},
+  {cat:'Artigo',title:'Truong & Hart (2020)',desc:'Vetiver (Chrysopogon zizanioides): raízes 3–4m, redução de 71% do escoamento superficial.',col:'var(--gold)'},
+  {cat:'Livro',title:'Das & Sobhan (2021)',desc:'Principles of Geotechnical Engineering. Parâmetros de referência para solos tropicais.',col:'var(--em)'},
+  {cat:'Livro',title:'Guidicini & Nieble (2019)',desc:'Estabilidade de taludes naturais e de escavação. Técnicas integradas de contenção.',col:'var(--em)'},
+  {cat:'Órgão',title:'CEMADEN (2024)',desc:'5.700+ ocorrências 2016–2024. 3.200 óbitos. Rede REPLAN: 4.500 pluviômetros automáticos.',col:'var(--warn)'},
+  {cat:'Órgão',title:'UNDRR (2023)',desc:'Para cada US$1 em EWS → retorno de US$10–15 em redução de perdas. Global.',col:'var(--warn)'},
+];
+let libFilter = 'Todos';
+function initLibrary(){
+  const cats = ['Todos','Norma','Manual','Artigo','Livro','Órgão'];
+  document.getElementById('lib-filters').innerHTML = cats.map(c=>`<button class="filter-btn ${c===libFilter?'active':''}" onclick="setLibFilter('${c}')">${c}</button>`).join('');
+  renderLib();
+}
+function setLibFilter(f){ libFilter=f; document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.textContent===f)); renderLib(); }
+function renderLib(){
+  const filtered = libFilter==='Todos'?libData:libData.filter(r=>r.cat===libFilter);
+  document.getElementById('lib-cards').innerHTML = filtered.map(r=>`
+    <div class="glass card-sm">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+        <span class="badge" style="background:${r.col+'18'};color:${r.col};border:1px solid ${r.col+'30'}">${r.cat}</span>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:.4rem;line-height:1.3">${r.title}</div>
+      <p style="font-size:11px;color:var(--sub);line-height:1.5">${r.desc}</p>
+    </div>`).join('');
+}
+
+// ══ GALLERY ══
+const galleryData = [
+  {title:'Corte Transversal da Encosta',sub:'Mecanismos de ruptura translacional · Varnes (1978)',svg:`
+    <svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="240" height="140" fill="rgba(5,11,24,.5)"/>
+      <polygon points="0,140 240,140 240,60 0,90" fill="rgba(120,80,40,.15)" stroke="none"/>
+      <polygon points="0,90 240,60 240,45 0,75" fill="rgba(80,100,40,.1)" stroke="none"/>
+      <path d="M0,90 L240,60" stroke="#8b6914" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <path d="M0,75 L240,45" stroke="#34d399" stroke-width="1" stroke-dasharray="3,3"/>
+      <path d="M0,85 Q60,78 100,72 Q140,66 180,58 L210,55" stroke="#f87171" stroke-width="2" fill="none"/>
+      <text x="5" y="12" font-size="8" fill="#38bdf8" font-family="monospace">Horizonte A (0–0,5m)</text>
+      <text x="5" y="24" font-size="8" fill="#fbbf24" font-family="monospace">Colúvio (0–1,5m)</text>
+      <text x="5" y="36" font-size="8" fill="#34d399" font-family="monospace">Solo residual (1,5–12m)</text>
+      <text x="5" y="48" font-size="8" fill="#8b6914" font-family="monospace">Saprolito (12–18m)</text>
+      <text x="110" y="58" font-size="7" fill="#f87171" font-family="monospace">← Plano de ruptura</text>
+      <text x="5" y="130" font-size="7" fill="#4a6080" font-family="monospace">β = 38°</text>
+    </svg>`},
+  {title:'Sistema de Drenagem Integrado',sub:'DHP + canaletas de crista + descidas d′água · NBR 10844',svg:`
+    <svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="240" height="140" fill="rgba(5,11,24,.5)"/>
+      <polygon points="0,140 240,140 240,55 0,80" fill="rgba(80,100,60,.12)"/>
+      <path d="M0,80 L240,55" stroke="rgba(52,211,153,.2)" stroke-width="1"/>
+      <path d="M10,75 L35,78" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M60,70 L85,73" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M110,65 L135,68" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M160,61 L185,64" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+      <path d="M10,75 Q5,85 3,100 Q1,115 2,130" stroke="#38bdf8" stroke-width="1.5" fill="none" stroke-dasharray="3,2"/>
+      <path d="M10,74 L200,52 L205,50" stroke="#34d399" stroke-width="2" fill="none"/>
+      <rect x="205" y="46" width="28" height="8" rx="2" fill="rgba(52,211,153,.15)" stroke="#34d399" stroke-width="1"/>
+      <text x="205" y="53" font-size="6" fill="#34d399" font-family="monospace">CANALETA</text>
+      <text x="38" y="76" font-size="7" fill="#38bdf8" font-family="monospace">DHP</text>
+      <text x="88" y="71" font-size="7" fill="#38bdf8" font-family="monospace">DHP</text>
+      <text x="138" y="66" font-size="7" fill="#38bdf8" font-family="monospace">DHP</text>
+      <text x="5" y="12" font-size="8" fill="#38bdf8" font-family="monospace">Drenos Ø100mm · L=15m</text>
+      <text x="5" y="22" font-size="7" fill="#4a6080" font-family="monospace">Espaçamento 2–5m</text>
+    </svg>`},
+  {title:'Muro de Gabião — Corte',sub:'Cestas metálicas · FS=1,72 estático · ABNT NBR 11682',svg:`
+    <svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="240" height="140" fill="rgba(5,11,24,.5)"/>
+      <polygon points="0,140 240,140 240,85 0,85" fill="rgba(80,80,80,.15)"/>
+      <rect x="60" y="55" width="40" height="30" rx="2" fill="rgba(100,80,50,.2)" stroke="#fbbf24" stroke-width="1"/>
+      <rect x="100" y="55" width="40" height="30" rx="2" fill="rgba(100,80,50,.2)" stroke="#fbbf24" stroke-width="1"/>
+      <rect x="140" y="55" width="40" height="30" rx="2" fill="rgba(100,80,50,.2)" stroke="#fbbf24" stroke-width="1"/>
+      <rect x="80" y="27" width="40" height="28" rx="2" fill="rgba(100,80,50,.2)" stroke="#fbbf24" stroke-width="1"/>
+      <rect x="120" y="27" width="40" height="28" rx="2" fill="rgba(100,80,50,.2)" stroke="#fbbf24" stroke-width="1"/>
+      <rect x="100" y="5" width="40" height="22" rx="2" fill="rgba(100,80,50,.2)" stroke="#fbbf24" stroke-width="1"/>
+      <path d="M55,85 L55,130" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="10" y="115" font-size="8" fill="#38bdf8" font-family="monospace">← Solo</text>
+      <text x="190" y="115" font-size="8" fill="#sub" fill-opacity=".7" font-family="monospace">Paramento</text>
+      <text x="5" y="12" font-size="8" fill="#fbbf24" font-family="monospace">Muro de Gabião — h=3m</text>
+    </svg>`},
+  {title:'Solo Pregado — Corte Esquemático',sub:'CA-50 φ25mm · L=6–20m · Face shotcrete 10–15cm',svg:`
+    <svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="240" height="140" fill="rgba(5,11,24,.5)"/>
+      <polygon points="0,140 240,140 100,0 0,0" fill="rgba(70,90,60,.12)"/>
+      <path d="M100,0 L0,0 L0,140 L240,140 L100,0" stroke="rgba(52,211,153,.2)" stroke-width="1" fill="none"/>
+      <rect x="0" y="0" width="14" height="140" fill="rgba(56,189,248,.08)" stroke="#38bdf8" stroke-width="1"/>
+      <text x="1" y="75" font-size="6" fill="#38bdf8" transform="rotate(-90,8,75)" font-family="monospace">SHOTCRETE</text>
+      ${[20,45,70,95,115].map(y=>`<line x1="14" y1="${y}" x2="${14+y*.8}" y2="${y+15}" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>`).join('')}
+      ${[20,45,70,95,115].map(y=>`<circle cx="${14+y*.8}" cy="${y+15}" r="3" fill="rgba(167,139,250,.3)" stroke="#a78bfa" stroke-width="1"/>`).join('')}
+      <text x="30" y="135" font-size="7" fill="#a78bfa" font-family="monospace">Pregos CA-50 inclinação 10–20°</text>
+    </svg>`},
+  {title:'Arquitetura IoT — Sistema de Monitoramento',sub:'Sensores → LoRa/4G → Gateway → Dashboard',svg:`
+    <svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="240" height="140" fill="rgba(5,11,24,.5)"/>
+      <rect x="5" y="40" width="38" height="22" rx="3" fill="rgba(56,189,248,.1)" stroke="#38bdf8" stroke-width="1"/>
+      <text x="24" y="54" font-size="7" fill="#38bdf8" font-family="monospace" text-anchor="middle">SENSOR</text>
+      <rect x="5" y="70" width="38" height="22" rx="3" fill="rgba(56,189,248,.1)" stroke="#38bdf8" stroke-width="1"/>
+      <text x="24" y="84" font-size="7" fill="#38bdf8" font-family="monospace" text-anchor="middle">PIEZO</text>
+      <rect x="5" y="100" width="38" height="22" rx="3" fill="rgba(56,189,248,.1)" stroke="#38bdf8" stroke-width="1"/>
+      <text x="24" y="114" font-size="7" fill="#38bdf8" font-family="monospace" text-anchor="middle">PLUVIO</text>
+      <rect x="98" y="55" width="44" height="30" rx="4" fill="rgba(167,139,250,.12)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="120" y="73" font-size="7" fill="#a78bfa" font-family="monospace" text-anchor="middle">GATEWAY</text>
+      <text x="120" y="81" font-size="6" fill="#4a6080" font-family="monospace" text-anchor="middle">LoRa/4G</text>
+      <rect x="192" y="40" width="44" height="22" rx="3" fill="rgba(52,211,153,.1)" stroke="#34d399" stroke-width="1"/>
+      <text x="214" y="54" font-size="7" fill="#34d399" font-family="monospace" text-anchor="middle">CEMADEN</text>
+      <rect x="192" y="72" width="44" height="22" rx="3" fill="rgba(251,146,60,.1)" stroke="#fb923c" stroke-width="1"/>
+      <text x="214" y="86" font-size="7" fill="#fb923c" font-family="monospace" text-anchor="middle">ALERTA EWS</text>
+      <rect x="192" y="104" width="44" height="22" rx="3" fill="rgba(56,189,248,.1)" stroke="#38bdf8" stroke-width="1"/>
+      <text x="214" y="118" font-size="7" fill="#38bdf8" font-family="monospace" text-anchor="middle">DASHBOARD</text>
+      <line x1="43" y1="51" x2="98" y2="65" stroke="rgba(56,189,248,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+      <line x1="43" y1="81" x2="98" y2="70" stroke="rgba(56,189,248,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+      <line x1="43" y1="111" x2="98" y2="75" stroke="rgba(56,189,248,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+      <line x1="142" y1="62" x2="192" y2="51" stroke="rgba(52,211,153,.3)" stroke-width="1"/>
+      <line x1="142" y1="70" x2="192" y2="83" stroke="rgba(251,146,60,.3)" stroke-width="1"/>
+      <line x1="142" y1="78" x2="192" y2="115" stroke="rgba(56,189,248,.3)" stroke-width="1"/>
+    </svg>`},
+  {title:'Bioengenharia — Vetiver',sub:'Chrysopogon zizanioides · raízes 3–4m · redução 71% escoamento',svg:`
+    <svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">
+      <rect width="240" height="140" fill="rgba(5,11,24,.5)"/>
+      <polygon points="0,140 240,140 240,80 0,80" fill="rgba(60,80,40,.15)"/>
+      <path d="M0,80 L240,80" stroke="rgba(52,211,153,.2)" stroke-width="1"/>
+      ${[30,70,110,150,190].map(x=>`
+        <line x1="${x}" y1="80" x2="${x-8}" y2="30" stroke="#34d399" stroke-width="1.5"/>
+        <line x1="${x}" y1="80" x2="${x+5}" y2="25" stroke="#34d399" stroke-width="1"/>
+        <line x1="${x}" y1="80" x2="${x}" y2="120" stroke="rgba(52,211,153,.5)" stroke-width="2"/>
+        <line x1="${x}" y1="100" x2="${x-15}" y2="130" stroke="rgba(52,211,153,.35)" stroke-width="1.5"/>
+        <line x1="${x}" y1="110" x2="${x+12}" y2="138" stroke="rgba(52,211,153,.3)" stroke-width="1.5"/>
+      `).join('')}
+      <text x="5" y="12" font-size="8" fill="#34d399" font-family="monospace">Grama Vetiver</text>
+      <text x="5" y="22" font-size="7" fill="#4a6080" font-family="monospace">Raízes: 3–4m profundidade</text>
+      <text x="5" y="32" font-size="7" fill="#4a6080" font-family="monospace">Escoamento: −71% em 12 meses</text>
+    </svg>`},
+];
+function initGallery(){
+  document.getElementById('gallery-grid').innerHTML = galleryData.map(g=>`
+    <div class="gallery-card">
+      <div class="gallery-svg-wrap">${g.svg}</div>
+      <div class="gallery-info">
+        <div class="gallery-title">${g.title}</div>
+        <div class="gallery-sub">${g.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ══ RESULTS ══
+let resInited=false;
+function initResults(){
+  if(resInited) return; resInited=true;
+  const fsEv=[{l:'Inicial\n(Sat.)',v:1.18,c:'rgba(248,113,113,.75)'},{l:'+ DHP',v:1.45,c:'rgba(251,191,36,.75)'},{l:'+ Gabião',v:1.58,c:'rgba(251,191,36,.75)'},{l:'Integrado',v:1.63,c:'rgba(52,211,153,.75)'}];
+  S.charts.fs = new Chart(document.getElementById('chart-fs'),{
+    type:'bar',
+    data:{labels:fsEv.map(x=>x.l),datasets:[{data:fsEv.map(x=>x.v),backgroundColor:fsEv.map(x=>x.c),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'FS = '+c.raw}}},scales:{
+      x:{ticks:{color:'#4a6080',font:{size:10}},grid:{color:'rgba(56,189,248,.05)'}},
+      y:{min:.5,max:2,ticks:{color:'#4a6080',font:{size:10}},grid:{color:'rgba(56,189,248,.05)'}},
+    }}
+  });
+  const sensi2=[{l:'Pior caso',v:1.05},{l:'c′=3, φ′=25°',v:1.18},{l:'Adotado',v:1.63},{l:'c′=15, φ′=32°',v:1.92},{l:'Melhor caso',v:2.14}];
+  S.charts.sensi2 = new Chart(document.getElementById('chart-sensi2'),{
+    type:'bar',data:{labels:sensi2.map(x=>x.l),datasets:[{data:sensi2.map(x=>x.v),backgroundColor:sensi2.map(x=>barColor(x.v)),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{color:'#4a6080',font:{size:9}},grid:{color:'rgba(56,189,248,.05)'}},
+      y:{min:.5,max:2.5,ticks:{color:'#4a6080',font:{size:9}},grid:{color:'rgba(56,189,248,.05)'}},
+    }}
+  });
+  const budget=[
+    ['Drenos Horizontais Profundos (DHP)','18 un','R$ 4.200','R$ 75.600'],
+    ['Muro de Gabião (h=3m, L=40m)','120 m³','R$ 680','R$ 81.600'],
+    ['Canaletas de Crista + Descidas d′Água','85 m','R$ 320','R$ 27.200'],
+    ['Bioengenharia — Vetiver','600 m²','R$ 45','R$ 27.000'],
+    ['Monitoramento IoT (5 sensores)','1 sistema','R$ 38.500','R$ 38.500'],
+    ['BDI + encargos (25%)','—','—','R$ 62.475'],
+  ];
+  document.getElementById('budget-table').innerHTML=`
+    <thead><tr><th>Item de Serviço</th><th>Qtd.</th><th>Preço Unitário</th><th>Total</th></tr></thead>
+    <tbody>${budget.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="td-mono" style="color:var(--gold)">${r[3]}</td></tr>`).join('')}
+    <tr style="border-top:1px solid rgba(251,191,36,.3)"><td colspan="3" style="font-weight:700;color:#fff;padding:.75rem">TOTAL GERAL</td><td class="td-mono" style="color:var(--gold);font-size:16px;font-weight:900;padding:.75rem">R$ 312.375</td></tr>
+    </tbody>`;
+}
+
+// ══ CONTACT ══
+function initContact(){
+  document.getElementById('team-cards').innerHTML = [
+    {name:'Filipe Leite Pires',email:'filipe.pires@souunisuam.com.br',role:'Autor principal'},
+    {name:'Jorge L. Vasques de Souza',email:'jorge.souza@souunisuam.com.br',role:'Co-autor'},
+    {name:'Josias Portal Lopes',email:'josias.lopes@souunisuam.com.br',role:'Co-autor'},
+  ].map(p=>`<div style="display:flex;align-items:center;gap:10px;padding:.5rem 0;border-bottom:1px solid var(--border)">
+    <div style="width:32px;height:32px;border-radius:50%;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--sky);flex-shrink:0">${p.name.slice(0,2).toUpperCase()}</div>
+    <div><div style="font-size:12px;font-weight:700;color:#fff">${p.name}</div><div style="font-size:10px;color:var(--muted)">${p.role} · ${p.email}</div></div>
+  </div>`).join('');
+  document.getElementById('prof-links').innerHTML = [
+    {icon:'🎓',label:'UNISUAM — Bonsucesso',url:'#',sub:'Centro Universitário Augusto Motta'},
+    {icon:'📄',label:'Artigo no Projectus',url:'#',sub:'Revista Projectus — 2026/1'},
+    {icon:'🗺️',label:'Geo-Rio',url:'https://www.rio.rj.gov.br',sub:'2.800 setores de risco mapeados'},
+    {icon:'🌐',label:'CEMADEN',url:'https://www.cemaden.gov.br',sub:'Centro Nacional de Monitoramento'},
+  ].map(l=>`<a href="${l.url}" target="_blank" style="display:flex;align-items:center;gap:10px;padding:.5rem .75rem;border-radius:8px;border:1px solid var(--border);background:rgba(56,189,248,.03);text-decoration:none;transition:border-color .15s" onmouseover="this.style.borderColor='rgba(56,189,248,.3)'" onmouseout="this.style.borderColor='var(--border)'">
+    <span style="font-size:16px">${l.icon}</span>
+    <div><div style="font-size:12px;font-weight:600;color:#fff">${l.label}</div><div style="font-size:10px;color:var(--muted)">${l.sub}</div></div>
+  </a>`).join('');
+}
+function sendContact(){
+  const name=document.getElementById('c-name').value.trim();
+  const email=document.getElementById('c-email').value.trim();
+  const msg=document.getElementById('c-msg').value.trim();
+  if(!name||!email||!msg){toast('Preencha todos os campos.','warn');return;}
+  toast('Mensagem enviada com sucesso!','ok');
+  document.getElementById('c-name').value='';
+  document.getElementById('c-email').value='';
+  document.getElementById('c-msg').value='';
+}
+
+// ══ PROFILE ══
+function updateProfile(){
+  if(!S.user) return;
+  document.getElementById('profile-greet').textContent = `Olá, ${S.user.name} — Painel Técnico`;
+  document.getElementById('profile-kpis').innerHTML = [
+    {l:'Simulações',v:S.simulations.length,col:'var(--sky)'},
+    {l:'Perfil',v:S.user.role.split(' ')[0],col:'var(--em)'},
+    {l:'Plataforma',v:'SIAEU v2.1',col:'var(--pur)'},
+    {l:'Sessão',v:new Date(S.user.loginTime).toLocaleTimeString('pt-BR'),col:'var(--gold)'},
+  ].map(m=>`<div class="glass card-sm"><div class="kpi-label">${m.l}</div><div class="kpi-val" style="color:${m.col};font-size:18px">${m.v}</div></div>`).join('');
+  const histEl = document.getElementById('sim-history');
+  if(S.simulations.length===0){
+    histEl.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:12px"><div style="font-size:24px;margin-bottom:.5rem">⚗</div>Nenhuma simulação. Acesse Simulador FS.</div>';
+  } else {
+    histEl.innerHTML = S.simulations.slice(-10).reverse().map(s=>`
+      <div class="sim-item">
+        <div>
+          <span class="sim-fs" style="color:${s.risk==='ESTÁVEL'?'var(--em)':s.risk==='ACEITÁVEL'?'var(--gold)':s.risk==='INSTÁVEL'?'var(--warn)':'var(--dan)'}">${s.fs}</span>
+          <span style="margin-left:8px;color:var(--muted);font-size:10px">β=${s.beta}° · c′=${s.c}kPa · φ′=${s.phi}°</span>
+        </div>
+        <span class="badge ${s.risk==='ESTÁVEL'?'badge-em':s.risk==='ACEITÁVEL'?'badge-warn':'badge-dan'}">${s.risk}</span>
+      </div>`).join('');
+  }
+  document.getElementById('docs-list').innerHTML=[
+    {n:'TCC — Prevenção de Deslizamentos',s:'2.4 MB · v1.0 Final',col:'var(--sky)'},
+    {n:'Planilha de Cálculo FS — Excel',s:'180 KB · SINAPI 2025',col:'var(--em)'},
+    {n:'Mapa de Risco Geotécnico',s:'850 KB · Geo-Rio 2024',col:'var(--gold)'},
+    {n:'Memorial Descritivo — DHP',s:'320 KB · NBR 10844',col:'var(--pur)'},
+  ].map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .6rem;border-radius:7px;border:1px solid var(--border);background:rgba(56,189,248,.03);margin-bottom:4px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px">📄</span>
+      <div><div style="font-size:11px;color:#fff">${d.n}</div><div style="font-size:10px;color:var(--muted)">${d.s}</div></div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <button onclick="toast('Visualizando documento...','info')" style="padding:4px 8px;border-radius:5px;border:none;background:rgba(56,189,248,.12);color:var(--sky);cursor:pointer;font-size:10px">👁</button>
+      <button onclick="toast('Download iniciado.','ok')" style="padding:4px 8px;border-radius:5px;border:none;background:rgba(52,211,153,.12);color:var(--em);cursor:pointer;font-size:10px">⬇</button>
+    </div>
+  </div>`).join('');
+}
+
+// ══ INIT ALL ══
+function initAll(){
+  initLiveSensors();
+  initAbout();
+  initLibrary();
+  initGallery();
+  initContact();
+  initMap();
+  initHeroCanvas();
+}
+</script>
+</body>
+</html>
