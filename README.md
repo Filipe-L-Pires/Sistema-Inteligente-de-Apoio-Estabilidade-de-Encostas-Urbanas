@@ -1,0 +1,2 @@
+# Sistema-Inteligente-de-Apoio-Estabilidade-de-Encostas-Urbanas
+SIAEU: Sistema Inteligente de Apoio à Estabilidade de Encostas Urbanas. Plataforma técnica para monitorização e análise de riscos geotécnicos. Integra cálculo de Fator de Segurança (FS), dashboard IoT em tempo real e biblioteca normativa (NBR 11682). Focado na mitigação de desastres em encostas de alto risco. Engenharia Civil UNISUAM 2026.
